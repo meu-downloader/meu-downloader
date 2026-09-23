@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Meu Downloader</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #111;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: #1c1c1c;
+            padding: 30px;
+            border-radius: 18px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .descricao {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 25px;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+        }
+
+        input,
+        select {
+            background: #2b2b2b;
+            color: white;
+        }
+
+        button {
+            background: #e50914;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #ff1b26;
+        }
+
+        .opcoes {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .opcoes button {
+            margin-top: 0;
+            background: #333;
+        }
+
+        .opcoes button.ativo {
+            background: #e50914;
+        }
+
+        #status {
+            text-align: center;
+            margin-top: 20px;
+            color: #ccc;
+            min-height: 24px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Meu Downloader</h1>
+
+    <div class="descricao">
+        Baixe vídeos e áudios
+    </div>
+
+    <input
+        type="text"
+        id="url"
+        placeholder="Cole a URL aqui"
+    >
+
+    <div class="opcoes">
+
+        <button
+            id="video"
+            class="ativo"
+            onclick="selecionarVideo()"
+        >
+            Vídeo
+        </button>
+
+        <button
+            id="audio"
+            onclick="selecionarAudio()"
+        >
+            Áudio
+        </button>
+
+    </div>
+
+    <select id="qualidade">
+
+        <option value="1080">
+            Vídeo - 1080p
+        </option>
+
+        <option value="720" selected>
+            Vídeo - 720p
+        </option>
+
+        <option value="480">
+            Vídeo - 480p
+        </option>
+
+        <option value="360">
+            Vídeo - 360p
+        </option>
+
+        <option value="mp3">
+            Áudio - MP3
+        </option>
+
+        <option value="m4a">
+            Áudio - M4A
+        </option>
+
+    </select>
+
+    <button
+        id="botaoBaixar"
+        onclick="iniciarDownload()"
+    >
+        Baixar
+    </button>
+
+    <div id="status"></div>
+
+</div>
+
+<script>
+
+let tipoSelecionado = "video";
+
+
+function selecionarVideo() {
+
+    tipoSelecionado = "video";
+
+    document.getElementById("video").classList.add("ativo");
+    document.getElementById("audio").classList.remove("ativo");
+
+    document.getElementById("qualidade").innerHTML = `
+        <option value="1080">Vídeo - 1080p</option>
+        <option value="720" selected>Vídeo - 720p</option>
+        <option value="480">Vídeo - 480p</option>
+        <option value="360">Vídeo - 360p</option>
+    `;
+}
+
+
+function selecionarAudio() {
+
+    tipoSelecionado = "audio";
+
+    document.getElementById("audio").classList.add("ativo");
+    document.getElementById("video").classList.remove("ativo");
+
+    document.getElementById("qualidade").innerHTML = `
+        <option value="mp3" selected>Áudio - MP3</option>
+        <option value="m4a">Áudio - M4A</option>
+    `;
+}
+
+
+async function iniciarDownload() {
+
+    const url = document
+        .getElementById("url")
+        .value
+        .trim();
+
+    const qualidade = document
+        .getElementById("qualidade")
+        .value;
+
+    const status = document
+        .getElementById("status");
+
+    const botao = document
+        .getElementById("botaoBaixar");
+
+
+    if (!url) {
+
+        status.textContent =
+            "Cole uma URL primeiro.";
+
+        return;
+    }
+
+
+    botao.disabled = true;
+
+    status.textContent =
+        "Preparando download... Aguarde.";
+
+
+    let tipo = tipoSelecionado;
+
+    if (tipo === "audio") {
+
+        tipo = qualidade === "m4a"
+            ? "m4a"
+            : "mp3";
+    }
+
+
+    try {
+
+        const resposta = await fetch(
+            "/download",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    url: url,
+                    tipo: tipo,
+                    qualidade: qualidade
+                })
+            }
+        );
+
+
+        if (!resposta.ok) {
+
+            let mensagem =
+                "Erro ao realizar o download.";
+
+            try {
+
+                const dados =
+                    await resposta.json();
+
+                if (dados.erro) {
+                    mensagem = dados.erro;
+                }
+
+            } catch (erro) {
+            }
+
+            status.textContent = mensagem;
+
+            botao.disabled = false;
+
+            return;
+        }
+
+
+        const blob =
+            await resposta.blob();
+
+
+        const disposicao =
+            resposta.headers.get(
+                "Content-Disposition"
+            );
+
+
+        let nomeArquivo =
+            "download";
+
+
+        if (disposicao) {
+
+            const correspondencia =
+                disposicao.match(
+                    /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+                );
+
+
+            if (
+                correspondencia &&
+                correspondencia[1]
+            ) {
+
+                nomeArquivo =
+                    correspondencia[1]
+                        .replace(/['"]/g, "");
+            }
+        }
+
+
+        const urlArquivo =
+            window.URL.createObjectURL(blob);
+
+
+        const link =
+            document.createElement("a");
+
+
+        link.href = urlArquivo;
+
+        link.download = nomeArquivo;
+
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+
+        window.URL.revokeObjectURL(
+            urlArquivo
+        );
+
+
+        status.textContent =
+            "Download concluído!";
+
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        status.textContent =
+            "Não foi possível conectar ao servidor.";
+
+    }
+
+
+    botao.disabled = false;
+}
+
+</script>
+
+</body>
+</html>
